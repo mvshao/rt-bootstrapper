@@ -74,7 +74,7 @@ func SetupPodWebhookWithManager(mgr ctrl.Manager, opts SetupPodWebhookWithManage
 		Complete()
 }
 
-type GetConfig = func() (*apiv1.Config, error)
+type GetConfig = func(context.Context) (*apiv1.Config, error)
 
 // +kubebuilder:webhook:path=/mutate--v1-pod,mutating=true,failurePolicy=fail,sideEffects=None,groups="",resources=pods,verbs=create,versions=v1,name=mpod-v1.kb.io,admissionReviewVersions=v1
 // +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch
@@ -152,7 +152,7 @@ func (d *podCustomDefaulter) Default(ctx context.Context, obj runtime.Object) (e
 	if pod.Annotations == nil {
 		pod.Annotations = map[string]string{}
 	}
-	pod.Annotations[apiv1.AnnotationDefaulted] = "true"
+	pod.Annotations[apiv1.AnnotationModified] = "true"
 
 	return nil
 }

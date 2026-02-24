@@ -110,7 +110,7 @@ var _ = BeforeSuite(func() {
 
 	whOpts := SetupPodWebhookWithManagerOpts{
 		ImagePullSecretName: "test-me-plz",
-		GetConfig: func() (*apiv1.Config, error) {
+		GetConfig: func(_ context.Context) (*apiv1.Config, error) {
 			return &apiv1.Config{
 				Overrides: map[string]string{
 					"replace.me": "ghcr.io",

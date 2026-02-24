@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"flag"
@@ -25,6 +26,8 @@ import (
 	"os"
 	"path"
 	"time"
+
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/kyma-project/rt-bootstrapper/internal/webhook/certificate"
 	"k8s.io/client-go/util/retry"
@@ -56,7 +59,6 @@ const (
 	webhookServerKeyName     = "tls.key"
 	webhookServerCertName    = "tls.crt"
 	flagWebhookName          = "webhook-name"
-	configFilePath           = "/tmp/rt-bootstrapper-config.json"
 	patchFieldManagerName    = "rt-bootstrapper-webhook"
 )
 
@@ -69,14 +71,6 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	// +kubebuilder:scaffold:scheme
-}
-
-func readConfig(name string) (*apiv1.Config, error) {
-	file, err := os.Open(name)
-	if err != nil {
-		return nil, err
-	}
-	return apiv1.NewConfig(file)
 }
 
 // nolint:gocyclo
@@ -93,6 +87,8 @@ func main() {
 	var imagePullSecretName string
 	var imagePullSecretNamespace string
 	var secretSyncIntervalOpt string
+	var configMapName string
+	var configMapNamespace string
 
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metrics endpoint binds to. "+
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
@@ -115,6 +111,8 @@ func main() {
 
 	flag.StringVar(&imagePullSecretName, "image-pull-secret-name", "registry-credentials", "The name of the secret containing credentials to a private docker registry.")
 	flag.StringVar(&imagePullSecretNamespace, "image-pull-secret-namespace", "kyma-system", "The namespace of the secret containing credentials to a private docker registry.")
+	flag.StringVar(&configMapName, "config-map-name", "rt-bootstrapper-config", "The name of the config map containing rt-bootstrapper configuration")
+	flag.StringVar(&configMapNamespace, "config-map-namespace", "kyma-system", "The namespace of the config-map containing rt-bootstrapper configuration.")
 	flag.StringVar(&secretSyncIntervalOpt, "secret-sync-interval", "1m", "The duration of secret synchronisation.")
 
 	opts := zap.Options{
@@ -244,12 +242,26 @@ func main() {
 		os.Exit(1)
 	}
 
+	readConfig := func(ctx context.Context) (*apiv1.Config, error) {
+		var rtBootstrapperConfig corev1.ConfigMap
+		if err := rtClient.Get(ctx, client.ObjectKey{
+			Name:      configMapName,
+			Namespace: configMapNamespace,
+		}, &rtBootstrapperConfig); err != nil {
+			return nil, err
+		}
+
+		rawConfig, found := rtBootstrapperConfig.Data[apiv1.ConfigMapKey]
+		if !found {
+			return nil, fmt.Errorf("configuration not found")
+		}
+
+		b := bytes.NewBuffer([]byte(rawConfig))
+		return apiv1.NewConfig(b)
+	}
+
 	whOpts := webhook_v1.SetupPodWebhookWithManagerOpts{
-		GetConfig: func() (*apiv1.Config, error) {
-			cfg, err := readConfig(configFilePath)
-			fmt.Println("configuration reloaded", cfg)
-			return cfg, err
-		},
+		GetConfig:           readConfig,
 		ImagePullSecretName: imagePullSecretName,
 	}
 

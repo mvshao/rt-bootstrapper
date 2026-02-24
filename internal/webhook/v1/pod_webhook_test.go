@@ -63,7 +63,7 @@ var _ = Describe("Pod Webhook", func() {
 			GetNsAnnotations: func(_ context.Context, name string) (map[string]string, error) {
 				return nil, nil
 			},
-			GetConfig: func() (*apiv1.Config, error) {
+			GetConfig: func(_ context.Context) (*apiv1.Config, error) {
 				return &apiv1.Config{
 					NamespaceFeatures: &apiv1.NamespaceFeatures{},
 					Overrides: map[string]string{
