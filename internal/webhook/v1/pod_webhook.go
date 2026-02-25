@@ -133,7 +133,12 @@ func (d *podCustomDefaulter) Default(ctx context.Context, obj runtime.Object) (e
 			WithGroup("for").Debug("invoking defaulter",
 			"i", fmt.Sprintf("%d", i))
 
-		podModified, err := defaulter(pod, nsAnnotations, d.GetConfig)
+		cfg, err := d.GetConfig(ctx)
+		if err != nil {
+			return err
+		}
+
+		podModified, err := defaulter(pod, nsAnnotations, cfg)
 		if err != nil {
 			return err
 		}

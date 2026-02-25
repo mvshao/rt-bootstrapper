@@ -1,7 +1,6 @@
 package v1
 
 import (
-	"context"
 	"log/slog"
 	"reflect"
 	"slices"
@@ -11,7 +10,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-type PodDefaulter = func(p *corev1.Pod, nsAnnotations map[string]string, fn func(context.Context) (*apiv1.Config, error)) (bool, error)
+type PodDefaulter = func(p *corev1.Pod, nsAnnotations map[string]string, cfg *apiv1.Config) (bool, error)
 
 var (
 	annotationsAlterImgRegistry = map[string]string{
@@ -30,14 +29,9 @@ type updateOpts struct {
 }
 
 func defaultPod(update func(*corev1.Pod, *apiv1.Config) bool, opts updateOpts) PodDefaulter {
-	return func(p *corev1.Pod, nsAnnotations map[string]string, fn func(context.Context) (*apiv1.Config, error)) (bool, error) {
+	return func(p *corev1.Pod, nsAnnotations map[string]string, cfg *apiv1.Config) (bool, error) {
 		// prepare logger
 		kvs := keysAndValues(p)
-
-		cfg, err := fn(context.TODO())
-		if err != nil {
-			return false, err
-		}
 
 		defaultFeatures := cfg.NamespaceFeatures.Features(p.Namespace)
 
